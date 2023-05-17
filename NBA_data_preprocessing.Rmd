@@ -26,7 +26,7 @@ write.csv(x = gamedata, file = paste0(wd,"/2012_2023_Data.csv"), row.names = FAL
 
 Testing that everything works, we'll make a quick bar plot.
 
-```{r, warning=FALSE, message=FALSE}
+```{r, warning=FALSE, message=FALSE, eval=FALSE}
 # let's get box scores with manipulating data
 # group by game_id, then group by team, pts by team
 box_scores <- gamedata %>%
@@ -183,6 +183,6 @@ design_matrix$outcomeGame <- as.factor(design_matrix$outcomeGame)
 
 # let's now save design matrix.
 wd <- paste0(getwd(), "/data")
-write.csv(x = gamedata, file = paste0(wd,"/design_matrix.csv"), row.names = FALSE)
+write.csv(x = design_matrix, file = paste0(wd,"/design_matrix.csv"), row.names = FALSE)
 
 ```
