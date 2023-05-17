@@ -134,8 +134,49 @@ plot(game_days, cumu_num_errors_log_vec, type = "l", xlab = "Game Days", ylab = 
 ```
 
 # Trying Ridge logistic
+
 ```{r}
 library(glmnet)
+
+x_train <- train_design_matrix %>%
+  select(-slugSeason, -dateGame, -outcomeGame)
+  
+y_train <- train_design_matrix %>%
+  select(outcomeGame)
+
+# Convert every column to numeric
+x_train <- as.matrix(data.frame(lapply(x_train, function(x) as.numeric(as.character(x)))))
+y_train <- as.numeric(y_train$outcomeGame)
+
+# Perform cross-validation to find the best lambda value for ridge
+cv_fit_ridge <- cv.glmnet(x_train, y_train, family = "binomial", alpha = 0, nfolds = 10)
+
+# Best lambda value
+best_lambda_ridge <- cv_fit_ridge$lambda.min
+
+# Fit ridge logistic regression model using the best lambda
+ridge_logistic_regression <- glmnet(x_train, y_train, family = "binomial", 
+                                    alpha = 0, lambda = best_lambda_ridge)
+
+# Coefficients
+ridge_coefficients <- coef(ridge_logistic_regression)
+
+# Predict probabilities
+predicted_probabilities <- predict(ridge_logistic_regression, as.matrix(x_test), type = "response")
+
+# Predict class labels
+predicted_outcomes_ridge <- ifelse(predicted_probabilities > 0.5, 1, 0)
+
+# getting accuracy
+correct_pred_ridge <- predicted_outcomes_ridge == y_test
+
+# Calculate accuracy
+accuracy_log_ridge <- mean(correct_pred_ridge)
+
+accuracy_log_ridge
+```
+
+```{r}
 # function to return a confusion matrix for all predictions on date with model refit to each new game day
 make_day_predictions_ridge <- function(data, date) {
   
@@ -212,3 +253,448 @@ ridge_accuracy <- (TN_ridge + TP_ridge)/(TN_ridge + FP_ridge + TP_ridge + FN_rid
 ridge_accuracy
 
 ```
+
+# trying lasso logistic
+
+```{r}
+# Perform cross-validation to find the best lambda value for lasso
+cv_fit_lasso <- cv.glmnet(x_train, y_train, family = "binomial", alpha = 1, nfolds = 10)
+
+# Best lambda value
+best_lambda_lasso <- cv_fit_lasso$lambda.min
+
+# Fit ridge logistic regression model using the best lambda
+lasso_logistic_regression <- glmnet(x_train, y_train, family = "binomial", 
+                                    alpha = 1, lambda = best_lambda_lasso)
+
+# Coefficients
+lasso_coefficients <- coef(lasso_logistic_regression)
+
+# Predict probabilities
+predicted_prob_las <- predict(lasso_logistic_regression, as.matrix(x_test), type = "response")
+
+# Predict class labels
+predicted_outcomes_lasso <- ifelse(predicted_prob_las > 0.5, 1, 0)
+
+# getting accuracy
+correct_pred_lasso <- predicted_outcomes_lasso == y_test
+
+# Calculate accuracy
+accuracy_log_lasso <- mean(correct_pred_lasso)
+
+accuracy_log_lasso
+```
+
+
+```{r}
+
+num_errors_lasso_vec <- vector(mode = "numeric", length = length(all_game_days))
+
+make_day_predictions_lasso <- function(data, date) {
+  
+  test_start <- which(data$dateGame == date)[1]
+  test_end <- tail(which(data$dateGame == date), n=1)
+  train_end <- test_start - 1
+  
+  train_design_matrix <- data[1:train_end,]
+  test_design_matrix <- data[test_start:test_end,]
+  
+  x_train <- train_design_matrix %>%
+  select(-slugSeason, -dateGame, -outcomeGame)
+  
+  y_train <- train_design_matrix %>%
+    select(outcomeGame)
+  
+  # Convert every column to numeric
+  x_train <- as.matrix(data.frame(lapply(x_train, function(x) as.numeric(as.character(x)))))
+  y_train <- as.numeric(y_train$outcomeGame)
+  
+  # Perform cross-validation to find the best lambda value for lasso
+  cv_fit_lasso <- cv.glmnet(x_train, y_train, family = "binomial", alpha = 1, nfolds = 10)
+  
+  # Best lambda value
+  best_lambda_lasso <- cv_fit_lasso$lambda.min
+  
+  # Fit lasso logistic regression model using the best lambda
+  lasso_logistic_regression <- glmnet(x_train, y_train, family = "binomial", 
+                                      alpha = 0, lambda = best_lambda_lasso)
+  
+  x_test <- test_design_matrix %>% 
+    select(-slugSeason, -dateGame, -outcomeGame)
+  
+  y_test <- test_design_matrix %>%
+    select(outcomeGame)
+  
+  predicted_probs <- predict(lasso_logistic_regression, newx = as.matrix(x_test), type = "response")
+  predicted_outcomes <- ifelse(predicted_probs > 0.5, 1, 0)
+  
+  y_test_vec <- y_test$outcomeGame
+  
+  # number errors
+  num_errors_lasso <- sum(predicted_outcomes != y_test_vec)
+  
+  confusion_matrix <- table(factor(y_test_vec, levels = c(0, 1)), 
+                            factor(predicted_outcomes, levels = c(0, 1)),
+                            dnn = c("Actual", "Predicted"))
+  
+  rownames(confusion_matrix) <- c("0", "1")
+  colnames(confusion_matrix) <- c("0", "1")
+  
+  confusion_matrix_matrix <- as.matrix(confusion_matrix)
+  
+  return_list <- list(confusion_matrix_matrix, num_errors_lasso)
+  
+  return(return_list)
+}
+
+# initialize list of matrices
+lasso_confusion_matrix_list <- vector("list", length = length(unique(design_matrix_2022$dateGame)))
+
+# loop through all game days using our design matrix, creating list of confusion matrices for 2022-2023
+for (i in 1:length(all_game_days)) {
+  temp <- make_day_predictions_lasso(design_matrix, all_game_days[i])
+  lasso_confusion_matrix_list[[i]] <- temp[[1]]
+  num_errors_lasso_vec[i] <- temp[[2]]
+}
+
+lasso_confusion_mat_sum <- Reduce('+', lasso_confusion_matrix_list)
+
+lasso_confusion_mat <- data.frame(
+  "Predicted_Labels" = c("Loss", "Win"),
+  "Loss" = c(lasso_confusion_mat_sum[1], lasso_confusion_mat_sum[3]),
+  "Win" = c(lasso_confusion_mat_sum[2], lasso_confusion_mat_sum[4])
+)
+
+library(reshape2)
+
+# Reshape the data
+melted_data <- melt(lasso_confusion_mat, id.vars = "Predicted_Labels")
+# Rename the columns
+names(melted_data) <- c("Predicted Labels", "True Labels", "Count")
+
+# Create the heatmap
+ggplot(data = melted_data, aes(x = `Predicted Labels`, y = `True Labels`, fill = Count)) + 
+  geom_tile() +
+  geom_text(aes(label = Count), color = "black", size = 5) + 
+  scale_fill_gradient(low = "white", high = "steelblue") +
+  theme_minimal() +
+  labs(title = "Heatmap of Predictions vs True Labels For Lasso Model", x = "Predicted Labels", y = "True Labels") +
+  theme(plot.title = element_text(hjust = 0.5))
+
+TN_lasso <- lasso_confusion_mat_sum[1,1]
+FP_lasso <- lasso_confusion_mat_sum[1,2]
+TP_lasso <- lasso_confusion_mat_sum[2,2]
+FN_lasso <- lasso_confusion_mat_sum[2,1]
+
+lasso_accuracy <- (TN_lasso + TP_lasso)/(TN_lasso + FP_lasso + TP_lasso + FN_lasso)
+lasso_accuracy
+
+```
+
+# Model for inference
+
+```{r}
+season <- "2022-23"
+
+# Find the first instance of the value in the '2022-2023' column
+test_start <- which(design_matrix$slugSeason == season)[1]
+
+train_design_matrix <- design_matrix[1:test_start-1,]
+test_design_matrix <- design_matrix[test_start:nrow(design_matrix),]
+
+logit_model_inference <- glm(outcomeGame ~ isB2BSecond + avg_treb + avg_stl + avg_blk + avg_tov + 
+                     avg_orate + avg_drate + avg_true_s , data = train_design_matrix, family = 
+                     binomial(link="logit"))
+
+summary(logit_model_inference)
+
+x_test <- test_design_matrix %>%
+  select(-slugSeason, -dateGame, -outcomeGame)
+
+y_test <- test_design_matrix %>%
+  select(outcomeGame)
+
+# get predictions
+predicted_probs_infer <- predict(logit_model_inference, newdata = x_test, type = "response")
+
+# Convert probabilities to binary outcomes using a threshold of 0.5
+predicted_outcomes_infer <- ifelse(predicted_probs_infer > 0.5, 1, 0)
+
+# getting accuracy
+correct_predictions_infer <- predicted_outcomes_infer == y_test
+
+# Calculate accuracy
+accuracy_log_infer <- mean(correct_predictions_infer)
+
+print(accuracy_log_infer)
+```
+
+```{r, message=FALSE}
+num_errors_loginf_vec <- vector(mode = "numeric", length = length(all_game_days))
+
+library(stargazer)
+library(lmtest)
+# function to return a confusion matrix for all predictions on date with model refit to each new game day
+make_day_predictions_inf <- function(data, date, i) {
+  
+  test_start <- which(data$dateGame == date)[1]
+  test_end <- tail(which(data$dateGame == date), n=1)
+  train_end <- test_start - 1
+  
+  train_design_matrix <- data[1:train_end,]
+  test_design_matrix <- data[test_start:test_end,]
+  
+  logistic_model <- glm(outcomeGame ~ isB2BSecond + avg_treb + avg_stl + avg_blk + avg_tov + 
+                     avg_orate + avg_drate + avg_true_s, 
+                   data = train_design_matrix, family = 
+                     binomial(link="logit"))
+  
+  if (i == 1){
+    stargazer(logistic_model, align = T, single.row = T, type="latex", 
+              out="log_first_results.tex")
+  }else if(i == 164) {
+    stargazer(logistic_model, align = T, single.row = T, type="latex", 
+              out="log_last_results.tex")
+  }
+  
+  x_test <- test_design_matrix %>% 
+    select(-slugSeason, -dateGame, -outcomeGame)
+  
+  y_test <- test_design_matrix %>%
+    select(outcomeGame)
+  
+  predicted_probs <- predict(logistic_model, newdata = x_test, type = "response")
+  predicted_outcomes <- ifelse(predicted_probs > 0.5, 1, 0)
+  
+  y_test_vec <- y_test$outcomeGame
+  
+  # number errors
+  num_errors_log_inf <- sum(predicted_outcomes != y_test_vec)
+  
+  confusion_matrix <- table(factor(y_test_vec, levels = c(0, 1)), 
+                            factor(predicted_outcomes, levels = c(0, 1)),
+                            dnn = c("Actual", "Predicted"))
+  
+  rownames(confusion_matrix) <- c("0", "1")
+  colnames(confusion_matrix) <- c("0", "1")
+  
+  confusion_matrix_matrix <- as.matrix(confusion_matrix)
+  return_list <- list(confusion_matrix_matrix, num_errors_log_inf)
+  
+  return(return_list)
+}
+
+# get all the game days for 2022-2023 season
+design_matrix_2022 <- subset(design_matrix, slugSeason == season)
+
+all_game_days <- unique(design_matrix_2022$dateGame)
+
+# initialize list of matrices
+inf_confusion_matrix_list <- vector("list", length = length(unique(design_matrix_2022$dateGame)))
+
+# loop through all game days using our design matrix, creating list of confusion matrices for 2022-2023
+for (i in 1:length(all_game_days)) {
+  temp <- make_day_predictions_inf(design_matrix, all_game_days[i], i)
+  inf_confusion_matrix_list[[i]] <- temp[[1]]
+  num_errors_loginf_vec[i] <- temp[[2]]
+}
+
+inf_confusion_mat_sum <- Reduce('+', inf_confusion_matrix_list)
+
+inf_confusion_mat_sum
+
+inf_TN <- inf_confusion_mat_sum[1,1]
+inf_FP <- inf_confusion_mat_sum[1,2]
+inf_TP <- inf_confusion_mat_sum[2,2]
+inf_FN <- inf_confusion_mat_sum[2,1]
+
+inf_accuracy <- (inf_TN + inf_TP)/(inf_TN + inf_FP + inf_TP + inf_FN)
+inf_accuracy
+```
+
+```{r}
+cumu_num_errors_loginf_vec <- cumsum(num_errors_loginf_vec)
+# Plot the line graph
+plot(game_days, cumu_num_errors_loginf_vec, type = "l", xlab = "Game Days", ylab = "Cumulative Prediction Errors", 
+     main = "Cumulative Prediction Errors for Logistic Model Over Gamedays", mar = c(5, 5, 4, 2))
+
+```
+
+### Trying some other models for fun.
+
+```{r, message=F}
+
+train_design_matrix <- design_matrix[1:test_start-1,]
+test_design_matrix <- design_matrix[test_start:nrow(design_matrix),]
+
+# random forest model
+set.seed(254)
+library(randomForest)
+
+# Convert outcomeGame to factor or binary variable
+train_design_matrix$outcomeGame <- as.factor(train_design_matrix$outcomeGame)
+
+rf_model <- randomForest(outcomeGame ~ isB2BSecond + avg_treb + avg_stl + avg_blk + avg_tov + 
+                     avg_orate + avg_drate + avg_true_s + avg_win_perc, 
+                   data = train_design_matrix) 
+
+rf_predictions <- predict(rf_model, x_test)
+
+confusion_matrix <- table(Predicted = rf_predictions, Actual = t(y_test[,1]))
+accuracy_rf <- sum(diag(confusion_matrix)) / sum(confusion_matrix)
+cat("Random Forest Accuracy: ", accuracy_rf)
+
+```
+
+0.6910569 accuracy
+
+# let's try random forest with only the variables that LASSO chose.
+```{r, message=FALSE}
+# random forest model
+set.seed(254)
+library(randomForest)
+rf_model <- randomForest(outcomeGame ~ isB2BSecond + avg_win_perc, 
+                   data = train_design_matrix) 
+
+rf_predictions <- predict(rf_model, x_test)
+
+confusion_matrix <- table(Predicted = rf_predictions, Actual = t(y_test[,1]))
+accuracy_rf <- sum(diag(confusion_matrix)) / sum(confusion_matrix)
+cat("Random Forest Accuracy: ", accuracy_rf)
+```
+
+ 0.7097561 accuracy
+
+```{r, message=F}
+train_design_matrix <- design_matrix[1:test_start-1,]
+test_design_matrix <- design_matrix[test_start:nrow(design_matrix),]
+
+# XGboost model
+library(xgboost)
+
+#train_design_matrix$outcomeGame <- as.integer(train_design_matrix$outcomeGame)
+
+#test_design_matrix$outcomeGame <- as.integer(test_design_matrix$outcomeGame)
+
+train_data <- train_design_matrix %>%
+  select(-slugSeason, -dateGame)
+  
+
+test_data <- test_design_matrix %>%
+  select(-slugSeason, -dateGame)
+
+# Convert the data to a suitable format for xgboost
+train_matrix <- xgb.DMatrix(data = as.matrix(train_data[, -which(names(train_data) == "outcomeGame")]), 
+                            label = train_data$outcomeGame)
+test_matrix <- xgb.DMatrix(data = as.matrix(test_data[, -which(names(test_data) == "outcomeGame")]), 
+                           label = test_data$outcomeGame)
+
+# set params for xgboost model
+params <- list(
+  objective = "binary:logistic", 
+  eval_metric = "error",
+  max_depth = 6,
+  eta = 0.3,
+  min_child_weight = 1,
+  subsample = 1,
+  colsample_bytree = 1
+)
+
+# training the model
+xgb_model <- xgb.train(
+  params = params,
+  data = train_matrix,
+  nrounds = 100, # number of boosting rounds
+  watchlist = list(train = train_matrix, test = test_matrix),
+  early_stopping_rounds = 10, # stop if no improvement in test set performance after 10 rounds
+  print_every_n = 10 # print evaluation metric every 10 rounds
+)
+
+xg_predictions <- predict(xgb_model, as.matrix(test_data[, -which(names(test_data) == "outcomeGame")]))
+
+# getting accuracy
+predicted_labels <- ifelse(xg_predictions > 0.5, 1, 0)
+accuracy_xg <- mean(predicted_labels == test_data$outcomeGame)
+print(accuracy_xg)
+
+```
+0.7081301 accuracy
+
+Naive Bayes
+
+```{r, message=FALSE}
+# Naive Bayes
+library(e1071)
+library(caret)
+library(lattice)
+set.seed(254)
+
+train_data$outcomeGame <- as.factor(train_data$outcomeGame)
+test_data$outcomeGame <- as.factor(test_data$outcomeGame)
+
+train_control <- trainControl(method="repeatedcv", number=10, repeats=3)
+
+nb_model <- train(outcomeGame~., data=train_data, trControl=train_control, 
+                  method="naive_bayes")
+
+nb_predictions <- nb_model %>% predict(test_data[,-2])
+accuracy_nb <- mean(nb_predictions == test_data$outcomeGame)
+print(accuracy_nb)
+```
+
+0.699187 accuracy
+
+SVM
+
+```{r, eval=FALSE}
+library(doParallel)
+library(foreach)
+
+cl <- makeCluster(detectCores() - 2)
+registerDoParallel(cl)
+
+# Define the parameter grid for the SVM model
+parameter_grid <- expand.grid(gamma = 10^seq(-5,5, length.out = 20), 
+                              cost = 10^seq(-5,5, length.out = 20))
+
+# run tune.svm in parallel
+svm_results_radial <- foreach(i = 1:nrow(parameter_grid), .packages = c("e1071")) %dopar% {
+  tune.svm(outcomeGame ~ ., data = train_data, kernel = "radial", gamma = parameter_grid[i,"gamma"], 
+           cost = parameter_grid[i,"cost"], metric = 'accuracy',
+           tunecontrol = tune.control(cross = 10))
+}
+
+# stop parallel processing
+stopCluster(cl)
+
+# Select the best SVM model based on accuracy
+error_radial <- sapply(svm_results_radial, function(x) min(x$performances$error))
+best_model_radial <- svm_results_radial[[which.min(error_radial)]]
+
+# Retrieve the best parameters from the best SVM model
+best_parameters_radial <- best_model_radial$best.parameters
+best_parameters_radial
+
+# gamma     cost
+# 3.359818e-05 8858.668
+
+# Train the SVM model using the best parameters
+svm_radial <- svm(outcomeGame ~ ., data = train_data, kernel = "radial", gamma =
+                     best_parameters_radial$gamma, cost = best_parameters_radial$cost)
+
+unregister_dopar <- function() {
+  env <- foreach:::.foreachGlobals
+  rm(list=ls(name=env), pos=env)
+}
+
+unregister_dopar()
+
+# do predictions
+radial_predictions <- predict(svm_radial, newdata = test_data[,-2])
+
+# Calculate the accuracy of the model
+radial_accuracy <- mean(as.numeric(radial_predictions)-1 == test_data[,2])
+print(paste("Radial Accuracy:", radial_accuracy))
+```
+
+Radial Accuracy: 0.709756097560976"

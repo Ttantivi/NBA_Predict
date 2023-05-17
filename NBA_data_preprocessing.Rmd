@@ -186,3 +186,14 @@ wd <- paste0(getwd(), "/data")
 write.csv(x = design_matrix, file = paste0(wd,"/design_matrix.csv"), row.names = FALSE)
 
 ```
+
+## errors over time for the logistic lasso model
+
+```{r}
+game_days <- seq(length(all_game_days))
+cumu_num_errors_lasso_vec <- cumsum(num_errors_lasso_vec)
+# Plot the line graph
+plot(game_days, cumu_num_errors_lasso_vec, type = "l", xlab = "Game Days", ylab = "Cumulative Prediction Errors", 
+     main = "Cumulative Prediction Errors for Logistic Lasso Model Over Gamedays", mar = c(5, 5, 4, 2))
+
+```
