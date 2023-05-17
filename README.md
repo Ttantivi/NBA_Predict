@@ -25,8 +25,8 @@ The data employed in this project is sourced from the nbastatR package. This com
 Our logistic regression model serves a dual purpose: to maximize prediction accuracy and provide actionable insights for NBA teams. Thus, we provide two versions of our model:
 
 * Prediction-focused model: A logistic model with a LASSO penalty, optimized for prediction accuracy (achieved 71.22% accuracy).
-* 0.7428 Precision
-* 0.7689 Recall
+* Precision: 0.7428
+* Recall: 0.7689
 ![Confusion Matrix](./Images/heatmap_lasso.png)
 ![Model Performance Over time](./Images/lasso_plot.png)
 
