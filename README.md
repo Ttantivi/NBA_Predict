@@ -28,9 +28,13 @@ This repository focuses on modeling the probability of the Home Team winning ver
 
 We seek to estimate the probability using the equation:
 
-![equation](https://latex.codecogs.com/png.latex?\Prob%28%5Ctext%7BHome%20Team%20wins%20vs.%20Away%20Team%7D%7C%20%5Ctext%7Bdata%7D%20%29%20%3D%20%5Chat%7Bp%7D)
+![Equation 1](./Images/equation_1.png)
 
-where ![equation](https://latex.codecogs.com/png.latex?0%20%5Cleq%20%5Chat%7Bp%7D%20%5Cleq%201). However, the initial equation provided is invalid and needs further correction.
+Where our predicted result of the game will be a binary function of:
+
+![Equation 2](./Images/equation_2.png)
+
+ However, the initial equation provided is invalid and needs further correction.
 
 ### Predicted Outcome
 
