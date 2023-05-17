@@ -1,3 +1,3 @@
 # NBA_Predict
 
-This is a readme
+This project was done in Collaboration with Jeffrey Kuo, jrkuo [at] berkeley [dot] edu
