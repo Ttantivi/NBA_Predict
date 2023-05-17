@@ -1,0 +1,188 @@
+---
+title: "Data Preprocessing"
+author: "Tim Tantivilaisin"
+date: "2023-05-17"
+output: pdf_document
+---
+
+# RUN THIS CODE BLOCK TO CREATE THE DATASET. Currently set to eval = F
+```{r, warning=FALSE, message=FALSE, eval=FALSE}
+# Install and Load the nbastatR package
+library('nbastatR')
+library('dplyr')
+library('ggplot2')
+Sys.setenv("VROOM_CONNECTION_SIZE" = 131072 * 2)
+
+# what seasons you want to analyze
+seasons <- seq(2013, 2023)
+
+# Access the game tables for a particular season
+gamedata <- game_logs(seasons = seasons)
+
+# 
+wd <- paste0(getwd(), "/data")
+write.csv(x = gamedata, file = paste0(wd,"/2012_2023_Data.csv"), row.names = FALSE)
+```
+
+Testing that everything works, we'll make a quick bar plot.
+
+```{r, warning=FALSE, message=FALSE}
+# let's get box scores with manipulating data
+# group by game_id, then group by team, pts by team
+box_scores <- gamedata %>%
+  select(idGame, nameTeam, pts) %>%
+  group_by(idGame, nameTeam) %>%
+  summarize(sum_pts = sum(pts))
+
+ggplot(box_scores, aes(x = box_scores$sum_pts, fill = box_scores$sum_pts)) +
+  geom_histogram(color = "black", fill = "white", binwidth = 1) +
+  xlab("Points Scored by Team per Game") +
+  ylab("Frequency") +
+  ggtitle("Histogram of Points Scored by Team per Game From 2013-2023 Season")
+```
+Since we have the file as a csv, let's load it in.
+
+```{r}
+# load the data we got from the api in the previous code chunk
+gamelogs <- read.csv("./data/2012_2023_Data.csv")
+
+# let's select for columns to make the data more manageable
+team_summary <- gamelogs %>%
+  select(slugSeason, dateGame, idGame, nameTeam, isB2BSecond, 
+         locationGame, slugMatchup, outcomeGame, blk, tov, pf, pts, stl, treb, 
+         oreb, dreb, fga, fgm, ftm, fta) %>%
+  arrange(idGame, nameTeam, locationGame)
+
+# prepping data before we aggregate on a by game basis.
+# need to calculate team stats first.
+team_summary <- team_summary %>%
+  group_by(idGame, nameTeam) %>%
+  summarize(slugSeason = first(slugSeason), dateGame = first(dateGame), 
+            idGame = first(idGame), nameTeam = first(nameTeam), 
+            isB2BSecond = first(isB2BSecond), locationGame = first(locationGame),
+            slugMatchup = first(slugMatchup),outcomeGame = first(outcomeGame), 
+            sum_blk = sum(blk), sum_tov = sum(tov), sum_pf = sum(pf), sum_stl = sum(stl),
+            sum_pts = sum(pts), sum_treb = sum(treb), 
+            sum_oreb = sum(oreb), sum_dreb = sum(dreb) ,sum_fga = sum(fga),
+            sum_fgm = sum(fgm), sum_ftm = sum(ftm), sum_fta = sum(fta)) %>%
+  arrange(idGame, desc(locationGame))
+
+# verified with https://www.statmuse.com/nba/ask?q=trailblazers+04%2F9%2F23+true+shooting+percentage
+team_summary <- team_summary %>%
+  mutate(trueshooting = sum_pts/(2*(sum_fga + 0.44*sum_fta)))
+
+# now need to calculate number of possessions. This is an estimate. 
+# https://www.basketball-reference.com/about/glossary.html#team
+# this is called poss in the previous
+team_summary <- team_summary %>% 
+  mutate(poss = ifelse(locationGame == "H", 0.5*((sum_fga + 0.4*sum_fta - 1.07*(sum_oreb/(sum_oreb + lead(sum_dreb)))*(sum_fga - sum_fgm)+sum_tov)+(lead(sum_fga)+0.4*lead(sum_fta)-1.07*(lead(sum_oreb)/(lead(sum_oreb) + sum_dreb))*(lead(sum_fga)-lead(sum_fgm))+lead(sum_tov))), 0))
+
+team_summary <- team_summary %>%
+  mutate(poss = ifelse(locationGame == "A", lag(poss),poss))
+
+# calculate team offensive rating
+team_summary <- team_summary %>%
+  mutate(orate = (sum_pts/poss)*100)
+
+# calculate team defensive rating
+team_summary <- team_summary %>%
+  mutate(drate = ifelse(locationGame == "H", (lead(sum_pts)/poss)*100, 
+                        (lag(sum_pts)/poss)*100))
+
+# let's make 0 1 for b2b
+team_summary <- team_summary %>% 
+  mutate(isB2BSecond = ifelse(isB2BSecond == "FALSE", 0, 1))
+
+# let's make 0 1 for W/L
+team_summary <- team_summary %>% 
+  mutate(outcomeGame = ifelse(outcomeGame == "W", 1, 0))
+
+# now scale blk, tov, stl, pts, treb per 100 possessions
+varsToScale <- c("sum_blk", "sum_tov", "sum_stl", "sum_pts", "sum_treb")
+team_summary <- team_summary %>% 
+  mutate(across(varsToScale, ~ (. / poss) * 100))
+
+# now calculate + -, which should also be by 100 possessions
+team_summary <- team_summary %>%
+  mutate(plu_min = ifelse(locationGame == "H", sum_pts-lead(sum_pts),
+         sum_pts - lag(sum_pts)))
+```
+
+At this point, we have all the data to start wrangling our design matrix.
+
+```{r}
+design_matrix <- team_summary
+
+design_matrix <- design_matrix %>%
+  select(-slugMatchup, -sum_pf, -sum_oreb, -sum_dreb, -sum_fga, -sum_fgm, -sum_ftm,
+         -sum_fta)
+
+print(design_matrix)
+```
+
+```{r, message=FALSE}
+# install.packages("slider")
+library(slider)
+# the strategy to get the last n games is to basically just do a lag(n = 10)
+design_matrix <- design_matrix %>%
+  group_by(nameTeam) %>%
+  arrange(dateGame) %>%
+  mutate(avg_pts = slide_dbl(sum_pts, mean, .before = 9, .complete = TRUE)) %>%
+  mutate(avg_treb = slide_dbl(sum_treb, mean, .before = 9, .complete = TRUE)) %>%
+  mutate(avg_stl = slide_dbl(sum_stl, mean, .before = 9, .complete = TRUE)) %>%
+  mutate(avg_blk = slide_dbl(sum_blk, mean, .before = 9, .complete = TRUE)) %>%
+  mutate(avg_tov = slide_dbl(sum_tov, mean, .before = 9, .complete = TRUE)) %>%
+  mutate(avg_orate = slide_dbl(orate, mean, .before = 9, .complete = TRUE)) %>%
+  mutate(avg_drate = slide_dbl(drate, mean, .before = 9, .complete = TRUE)) %>%
+  mutate(avg_pl_min = slide_dbl(plu_min, mean, .before = 9, .complete = TRUE)) %>%
+  mutate(avg_true_s = slide_dbl(trueshooting, mean, .before = 9, .complete = TRUE)) %>%
+  mutate(avg_win_perc = slide_dbl(outcomeGame, sum, .before = 9, .complete = TRUE)) %>%
+  mutate(avg_win_perc = avg_win_perc/10) %>%
+  ungroup()
+
+# get rid of N/A rows
+design_matrix <- design_matrix[311:nrow(design_matrix),]
+
+# then now select only the columns that we take the difference of
+design_matrix <- design_matrix %>%
+  select(-avg_pts,-sum_blk, -sum_tov, -sum_stl, -sum_pts, -sum_treb,
+         -trueshooting, -poss, -orate, -drate, -plu_min)
+  
+# let's finally take the difference of the columns
+diff_vec <- c("avg_treb", "isB2BSecond", "avg_stl", "avg_blk", "avg_tov", "avg_orate",
+              "avg_drate", "avg_pl_min", "avg_true_s", "avg_win_perc")
+
+design_matrix <- design_matrix %>%
+  mutate(across(diff_vec, ~(ifelse(locationGame == "H", . - lead(.), lead(.)))))
+  
+
+# now that we've taken the difference, we only need the H rows
+design_matrix <- design_matrix %>%
+  filter(locationGame == "H")
+
+# Find rows with any missing values (N/A)
+rows_with_na <- apply(is.na(design_matrix), 1, any)
+
+# Display the rows with N/A values
+# design_matrix[rows_with_na, ]
+
+
+##### think through this logic later, if the model turns out being bad.
+# the cause of this are NBA teams changing names.
+# let's remove N/A columns.
+design_matrix <- design_matrix %>% na.omit(na.omit)
+
+####################
+
+# only selecting for columns we now need
+design_matrix <- design_matrix %>%
+  select(-idGame, -nameTeam, -locationGame)
+
+# let's make outcome game a factor
+design_matrix$outcomeGame <- as.factor(design_matrix$outcomeGame)
+
+```
+
+
+
+
