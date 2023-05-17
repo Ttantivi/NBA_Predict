@@ -22,6 +22,48 @@ The data employed in this project is sourced from the nbastatR package. This com
 
 ## Models and Results
 
+# Modeling Probability of Home Team Winning vs. Away Team
+
+This repository focuses on modeling the probability of the Home Team winning versus the Away Team based on available data. Our aim is to predict the outcome of a game using a binary function and understand the underlying factors contributing to the predicted probability.
+
+## Probability Estimation
+
+We seek to estimate the probability using the equation:
+
+![equation](https://latex.codecogs.com/png.latex?\Prob%28%5Ctext%7BHome%20Team%20wins%20vs.%20Away%20Team%7D%7C%20%5Ctext%7Bdata%7D%20%29%20%3D%20%5Chat%7Bp%7D)
+
+where ![equation](https://latex.codecogs.com/png.latex?0%20%5Cleq%20%5Chat%7Bp%7D%20%5Cleq%201). However, the initial equation provided is invalid and needs further correction.
+
+## Predicted Outcome
+
+The predicted outcome of the game is determined by a binary function:
+
+![equation](https://latex.codecogs.com/png.latex?%5Chat%7By%7D%20%3D%20%5Cbegin%7Bcases%7D%20%5Ctext%7BHome%20Team%20wins%7D%20%26%20%5Chat%7Bp%7D_i%20%5Cgeq%200.5%20%5C%5C%20%5Ctext%7BAway%20Team%20wins%7D%20%26%20%5Chat%7Bp%7D_i%20%3C%200.5.%20%5Cend%7Bcases%7D)
+
+## Data and Features
+
+To calculate the probability, we utilize data from the 2012 season up to the prediction day. For instance, when predicting the winners of teams playing on 12/12/2022, the training data includes all games from 2012 to 12/11/2022. Our covariates are constructed as the home team's average stats over their last 10 games minus the away team's average stats over their last 10 games. The following stats are used: total rebounds, steals, blocks, turnovers, offensive rating, defensive rating, true shooting, and win rate. To account for the pace of the game, all stats except true shooting and win rate are adjusted on a per 100 possessions basis.
+
+## Dual-Model Approach
+
+We initially aimed for a single model that excelled in both prediction accuracy and inferential capability. However, we discovered a trade-off between the two objectives. A model with excellent prediction accuracy suffered from multi-collinearity, impairing its inferential abilities. Therefore, we implemented a dual-model approach:
+
+1. Logistic Regression with LASSO Penalty: Emphasizes prediction accuracy.
+2. Regular Logistic Regression: Focuses on extracting meaningful insights.
+
+This approach enables us to achieve our objectives using separate, specialized models.
+
+## Back-to-Back Games
+
+We include a covariate to indicate the relative difference between each team in terms of whether the current game is a back-to-back (consecutive game). The covariate takes the following values:
+- 1: Current game is a back-to-back for the home team only.
+- 0: Current game is a back-to-back for both teams or for neither team.
+- -1: Current game is a back-to-back for the away team only.
+
+For additional details on the model and its implications, refer to Section 3.
+
+Please note that this is a simplified
+
 Our logistic regression model serves a dual purpose: to maximize prediction accuracy and provide actionable insights for NBA teams. Thus, we provide two versions of our model:
 
 * Prediction-focused model: A logistic model with a LASSO penalty, optimized for prediction accuracy (achieved 71.22% accuracy).
