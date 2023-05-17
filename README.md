@@ -24,23 +24,15 @@ The data employed in this project is sourced from the nbastatR package. This com
 
 This repository focuses on modeling the probability of the Home Team winning versus the Away Team based on available data. Our aim is to predict the outcome of a game using a binary function and understand the underlying factors contributing to the predicted probability.
 
-##Probability Estimation
+## Probability Estimation
 
 We seek to estimate the probability using the equation:
 
 ![Equation 1](./Images/equation_1.png)
 
-Where our predicted result of the game will be a binary function of:
-
-![Equation 2](./Images/equation_2.png)
-
- However, the initial equation provided is invalid and needs further correction.
-
-### Predicted Outcome
-
 The predicted outcome of the game is determined by a binary function:
 
-![equation](https://latex.codecogs.com/png.latex?%5Chat%7By%7D%20%3D%20%5Cbegin%7Bcases%7D%20%5Ctext%7BHome%20Team%20wins%7D%20%26%20%5Chat%7Bp%7D_i%20%5Cgeq%200.5%20%5C%5C%20%5Ctext%7BAway%20Team%20wins%7D%20%26%20%5Chat%7Bp%7D_i%20%3C%200.5.%20%5Cend%7Bcases%7D)
+![Equation 2](./Images/equation_2.png)
 
 ### Data and Features
 
