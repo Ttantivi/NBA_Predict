@@ -20,7 +20,7 @@ With an emphasis on interpretability over complexity, we chose to utilize linear
 
 The data employed in this project is sourced from the nbastatR package. This comprehensive package includes data for every NBA game played in a particular season, covering various facets such as player performance (e.g., total points, minutes played) and home field advantage, among other factors. For this specific analysis, we leveraged the past 10 seasons of data, with the 2022 season alone contributing 26039 rows of observations.
 
-## Models
+## Models and Results
 
 Our logistic regression model serves a dual purpose: to maximize prediction accuracy and provide actionable insights for NBA teams. Thus, we provide two versions of our model:
 
