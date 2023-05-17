@@ -3,7 +3,7 @@
 This project was done in Collaboration with Jeffrey Kuo, jrkuo2015 [at] berkeley [dot] edu
 
 To view detailed derivation of methods, please read Mtehod_Details.pdf
-![NBA Logo](./Images/logo.png)
+![NBA Logo](./Images/nba_logo.png)
 ## Introduction
 
 This repository houses the predictive models we've created for predicting win/loss outcomes of NBA regular seasons. The current focus is on the latest 2022-2023 season, where we employ historical team performance data, home field advantage and additional factors to inform our predictions.
