@@ -181,8 +181,8 @@ design_matrix <- design_matrix %>%
 # let's make outcome game a factor
 design_matrix$outcomeGame <- as.factor(design_matrix$outcomeGame)
 
+# let's now save design matrix.
+wd <- paste0(getwd(), "/data")
+write.csv(x = gamedata, file = paste0(wd,"/design_matrix.csv"), row.names = FALSE)
+
 ```
-
-
-
-
