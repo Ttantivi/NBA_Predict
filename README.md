@@ -27,4 +27,4 @@ Our logistic regression model serves a dual purpose: to maximize prediction accu
 * Prediction-focused model: A logistic model with a LASSO penalty, optimized for prediction accuracy (achieved 71.22% accuracy).
 * Inference-focused model: A standard logistic regression model, tailored to offer valuable insights (achieved 68.94% accuracy).
 
-![Confusion Matrix](./images/heatmap_lasso.png)
+![Confusion Matrix](./Images/heatmap_lasso.png)
