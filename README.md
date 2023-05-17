@@ -22,7 +22,17 @@ With an emphasis on interpretability over complexity, we chose to utilize linear
 
 The data employed in this project is sourced from the nbastatR package. This comprehensive package includes data for every NBA game played in a particular season, covering various facets such as player performance (e.g., total points, minutes played) and home field advantage, among other factors. For this specific analysis, we leveraged the past 10 seasons of data, with the 2022 season alone contributing 26039 rows of observations.
 
-To calculate the probability, we utilize data from the 2012 season up to the prediction day. For instance, when predicting the winners of teams playing on 12/12/2022, the training data includes all games from 2012 to 12/11/2022. Our covariates are constructed as the home team's average stats over their last 10 games minus the away team's average stats over their last 10 games. The following stats are used: total rebounds, steals, blocks, turnovers, offensive rating, defensive rating, true shooting, and win rate. To account for the pace of the game, all stats except true shooting and win rate are adjusted on a per 100 possessions basis.
+To calculate the probability, we utilize data from the 2012 season up to the prediction day. For instance, when predicting the winners of teams playing on 12/12/2022, the training data includes all games from 2012 to 12/11/2022. Our covariates are constructed as the home team's average stats over their last 10 games minus the away team's average stats over their last 10 games. The following stats are used: 
+* total rebounds
+* totalsteals
+* total blocks
+* total turnovers
+* offensive rating
+* defensive rating
+* true shooting
+* win rate. 
+
+To account for the pace of the game, all stats except true shooting and win rate are adjusted on a per 100 possessions basis.
 
 ## Modeling
 
@@ -40,7 +50,7 @@ The predicted outcome of the game is determined by a binary function:
 
 To gain an understanding of the data required for prediction, let's consider the scenario of predicting the winner between the Home Team and the Away Team. Our goal is to evaluate the relative strength of the Home Team compared to the Away Team. A higher quality measure for the Home Team, relative to the Away Team, corresponds to a greater value of the predicted probability, denoted as ˆp. To achieve this, we create a design matrix, where each row represents the arithmetic difference between the Home Team's performance and the Away Team's performance as the independent variable. The dependent variable is the win/loss outcome of the game. Each column in the design matrix represents a different quality measure for evaluation.
 
-Initially, our objective was to develop a single model that excelled in both prediction accuracy and inferential capability. However, we encountered a trade-off between these objectives during our research. We discovered that a model with excellent prediction accuracy suffered from multi-collinearity among variables, resulting in a significant impairment of its inferential abilities. In Section 3 of this repository, we delve into the intricacies of this issue, including its underlying reasons and implications.
+Initially, our objective was to develop a single model that excelled in both prediction accuracy and inferential capability. However, we encountered a trade-off between these objectives during our research. We discovered that a model with excellent prediction accuracy suffered from multi-collinearity among variables, resulting in a significant impairment of its inferential abilities.
 
 ### Dual-Model Approach
 
