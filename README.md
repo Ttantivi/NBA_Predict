@@ -31,3 +31,4 @@ Our logistic regression model serves a dual purpose: to maximize prediction accu
 ![Model Performance Over time](./Images/lasso_plot.png)
 
 * Inference-focused model: A standard logistic regression model, tailored to offer valuable insights (achieved 68.94% accuracy).
+![Summary table](./Images/Logistic_Summary.png)
