@@ -1,0 +1,214 @@
+---
+title: "NBA_Predict_Models"
+author: "Tim Tantivilaisin"
+date: "2023-05-17"
+output: pdf_document
+---
+
+## Loading in design matrix
+```{r}
+# load the data we got from the api in the previous code chunk
+design_matrix <- read.csv("./data/design_matrix.csv")
+```
+
+## We can now finally split into train and test split. Where train is everything but the 2022-2023 season.
+
+```{r}
+season <- "2022-23"
+
+# Find the first instance of the value in the '2022-2023' column
+test_start <- which(design_matrix$slugSeason == season)[1]
+
+train_design_matrix <- design_matrix[1:test_start-1,]
+test_design_matrix <- design_matrix[test_start:nrow(design_matrix),]
+
+logit_model <- glm(outcomeGame ~ isB2BSecond + avg_treb + avg_stl + avg_blk + avg_tov + 
+                     avg_orate + avg_drate + avg_true_s + avg_win_perc + avg_pl_min, 
+                   data = train_design_matrix, family = 
+                     binomial(link="logit"))
+
+summary(logit_model)
+
+x_test <- test_design_matrix %>%
+  select(-slugSeason, -dateGame, -outcomeGame)
+
+y_test <- test_design_matrix %>%
+  select(outcomeGame)
+
+# get predictions
+predicted_probs <- predict(logit_model, newdata = x_test, type = "response")
+
+# Convert probabilities to binary outcomes using a threshold of 0.5
+predicted_outcomes <- ifelse(predicted_probs > 0.5, 1, 0)
+
+# getting accuracy
+correct_predictions <- predicted_outcomes == y_test
+
+# Calculate accuracy
+accuracy_log <- mean(correct_predictions)
+
+print(accuracy_log)
+```
+
+
+```{r}
+# get all the game days for 2022-2023 season
+design_matrix_2022 <- subset(design_matrix, slugSeason == season)
+all_game_days <- unique(design_matrix_2022$dateGame)
+num_errors_log_vec <- vector(mode = "numeric", length = length(all_game_days))
+
+# function to return a confusion matrix for all predictions on date with model refit to each new game day
+make_day_predictions <- function(data, date) {
+  
+  test_start <- which(data$dateGame == date)[1]
+  test_end <- tail(which(data$dateGame == date), n=1)
+  train_end <- test_start - 1
+  
+  train_design_matrix <- data[1:train_end,]
+  test_design_matrix <- data[test_start:test_end,]
+  
+  logistic_model <- glm(outcomeGame ~ isB2BSecond + avg_treb + avg_stl + avg_blk + avg_tov + 
+                     avg_orate + avg_drate + avg_true_s + avg_win_perc, 
+                   data = train_design_matrix, family = 
+                     binomial(link="logit"))
+  
+  x_test <- test_design_matrix %>% 
+    select(-slugSeason, -dateGame, -outcomeGame)
+  
+  y_test <- test_design_matrix %>%
+    select(outcomeGame)
+  
+  predicted_probs <- predict(logistic_model, newdata = x_test, type = "response")
+  predicted_outcomes <- ifelse(predicted_probs > 0.5, 1, 0)
+  
+  y_test_vec <- y_test$outcomeGame
+  
+  # number errors
+  num_errors_log <- sum(predicted_outcomes != y_test_vec)
+  
+  confusion_matrix <- table(factor(y_test_vec, levels = c(0, 1)), 
+                            factor(predicted_outcomes, levels = c(0, 1)),
+                            dnn = c("Actual", "Predicted"))
+  
+  rownames(confusion_matrix) <- c("0", "1")
+  colnames(confusion_matrix) <- c("0", "1")
+  
+  confusion_matrix_matrix <- as.matrix(confusion_matrix)
+  
+  return_list <- list(confusion_matrix_matrix, num_errors_log)
+  
+  return(return_list)
+}
+
+# initialize list of matrices
+confusion_matrix_list <- vector("list", length = length(unique(design_matrix_2022$dateGame)))
+
+# loop through all game days using our design matrix, creating list of confusion matrices for 2022-2023
+for (i in 1:length(all_game_days)) {
+  temp <- make_day_predictions(design_matrix, all_game_days[i])
+  confusion_matrix_list[[i]] <- temp[[1]]
+  num_errors_log_vec[i] <- temp[[2]]
+}
+
+confusion_mat_sum <- Reduce('+', confusion_matrix_list)
+
+confusion_mat_sum
+
+TN <- confusion_mat_sum[1,1]
+FP <- confusion_mat_sum[1,2]
+TP <- confusion_mat_sum[2,2]
+FN <- confusion_mat_sum[2,1]
+
+accuracy <- (TN + TP)/(TN + FP + TP + FN)
+accuracy
+```
+See how errors add up over time.
+
+```{r}
+game_days <- seq(length(all_game_days))
+cumu_num_errors_log_vec <- cumsum(num_errors_log_vec)
+# Plot the line graph
+plot(game_days, cumu_num_errors_log_vec, type = "l", xlab = "Game Days", ylab = "Cumulative Prediction Errors", 
+     main = "Cumulative Prediction Errors for Logistic Model", mar = c(5, 5, 4, 2))
+
+```
+
+# Trying Ridge logistic
+```{r}
+library(glmnet)
+# function to return a confusion matrix for all predictions on date with model refit to each new game day
+make_day_predictions_ridge <- function(data, date) {
+  
+  test_start <- which(data$dateGame == date)[1]
+  test_end <- tail(which(data$dateGame == date), n=1)
+  train_end <- test_start - 1
+  
+  train_design_matrix <- data[1:train_end,]
+  test_design_matrix <- data[test_start:test_end,]
+  
+  x_train <- train_design_matrix %>%
+  select(-slugSeason, -dateGame, -outcomeGame)
+  
+  y_train <- train_design_matrix %>%
+    select(outcomeGame)
+  
+  # Convert every column to numeric
+  x_train <- as.matrix(data.frame(lapply(x_train, function(x) as.numeric(as.character(x)))))
+  y_train <- as.numeric(y_train$outcomeGame)
+  
+  # Perform cross-validation to find the best lambda value for ridge
+  cv_fit_ridge <- cv.glmnet(x_train, y_train, family = "binomial", alpha = 0, nfolds = 10)
+  
+  # Best lambda value
+  best_lambda_ridge <- cv_fit_ridge$lambda.min
+  
+  # Fit ridge logistic regression model using the best lambda
+  ridge_logistic_regression <- glmnet(x_train, y_train, family = "binomial", 
+                                      alpha = 0, lambda = best_lambda_ridge)
+  
+  x_test <- test_design_matrix %>% 
+    select(-slugSeason, -dateGame, -outcomeGame)
+  
+  y_test <- test_design_matrix %>%
+    select(outcomeGame)
+  
+  predicted_probs <- predict(ridge_logistic_regression, newx = as.matrix(x_test), type = "response")
+  predicted_outcomes <- ifelse(predicted_probs > 0.5, 1, 0)
+  
+  y_test_vec <- y_test$outcomeGame
+  
+  confusion_matrix <- table(factor(y_test_vec, levels = c(0, 1)), 
+                            factor(predicted_outcomes, levels = c(0, 1)),
+                            dnn = c("Actual", "Predicted"))
+  
+  rownames(confusion_matrix) <- c("0", "1")
+  colnames(confusion_matrix) <- c("0", "1")
+  
+  confusion_matrix_matrix <- as.matrix(confusion_matrix)
+  
+  return(confusion_matrix_matrix)
+}
+
+# initialize list of matrices
+ridge_confusion_matrix_list <- vector("list", length = length(unique(design_matrix_2022$dateGame)))
+
+# loop through all game days using our design matrix, creating list of confusion matrices for 2022-2023
+for (i in 1:length(all_game_days)) {
+  
+  ridge_confusion_matrix_list[[i]] <- make_day_predictions_ridge(design_matrix, all_game_days[i])
+  
+}
+
+ridge_confusion_mat_sum <- Reduce('+', ridge_confusion_matrix_list)
+
+ridge_confusion_mat_sum
+
+TN_ridge <- ridge_confusion_mat_sum[1,1]
+FP_ridge <- ridge_confusion_mat_sum[1,2]
+TP_ridge <- ridge_confusion_mat_sum[2,2]
+FN_ridge <- ridge_confusion_mat_sum[2,1]
+
+ridge_accuracy <- (TN_ridge + TP_ridge)/(TN_ridge + FP_ridge + TP_ridge + FN_ridge)
+ridge_accuracy
+
+```
