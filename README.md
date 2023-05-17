@@ -24,7 +24,7 @@ The data employed in this project is sourced from the nbastatR package. This com
 
 This repository focuses on modeling the probability of the Home Team winning versus the Away Team based on available data. Our aim is to predict the outcome of a game using a binary function and understand the underlying factors contributing to the predicted probability.
 
-## Probability Estimation
+### Probability Estimation
 
 We seek to estimate the probability using the equation:
 
@@ -33,6 +33,10 @@ We seek to estimate the probability using the equation:
 The predicted outcome of the game is determined by a binary function:
 
 ![Equation 2](./Images/equation_2.png)
+
+To gain an understanding of the data required for prediction, let's consider the scenario of predicting the winner between the Home Team and the Away Team. Our goal is to evaluate the relative strength of the Home Team compared to the Away Team. A higher quality measure for the Home Team, relative to the Away Team, corresponds to a greater value of the predicted probability, denoted as ˆp. To achieve this, we create a design matrix, where each row represents the arithmetic difference between the Home Team's performance and the Away Team's performance as the independent variable. The dependent variable is the win/loss outcome of the game. Each column in the design matrix represents a different quality measure for evaluation.
+
+Initially, our objective was to develop a single model that excelled in both prediction accuracy and inferential capability. However, we encountered a trade-off between these objectives during our research. We discovered that a model with excellent prediction accuracy suffered from multi-collinearity among variables, resulting in a significant impairment of its inferential abilities. In Section 3 of this repository, we delve into the intricacies of this issue, including its underlying reasons and implications.
 
 ### Data and Features
 
