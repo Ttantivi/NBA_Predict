@@ -2,7 +2,7 @@
 
 This project was done in collaboration with Jeffrey Kuo, jrkuo2015 [at] berkeley [dot] edu
 
-To view detailed derivation of methods, please read Mtehod_Details.pdf
+To view detailed derivation of methods, please read Method_Details.pdf
 
 ![NBA Logo](./Images/nba_logo_small.png)
 
