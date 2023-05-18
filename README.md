@@ -76,3 +76,5 @@ Please note that this is a simplified overview, and further information can be f
 
 * Inference-focused model: A standard logistic regression model, tailored to offer valuable insights (achieved 68.94% accuracy).
 ![Summary table](./Images/Logistic_Summary.png)
+
+## How Do These Results Compare to More Complicated Machine Learning Methods?
