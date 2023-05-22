@@ -78,4 +78,5 @@ Please note that this is a simplified overview, and further information can be f
 ![Summary table](./Images/Logistic_Summary.png)
 
 ## How Do These Results Compare to More Complicated Machine Learning Methods?
+We review the following results below.
 ![Accuracy Summaries](./Images/model_accuracies.png)
