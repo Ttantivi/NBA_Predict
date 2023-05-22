@@ -78,5 +78,6 @@ Please note that this is a simplified overview, and further information can be f
 ![Summary table](./Images/Logistic_Summary.png)
 
 ## How Do These Results Compare to More Complicated Machine Learning Methods?
-We review the following results below.
+The results below tell us that the Logistic Regression model with the LASSO penalty actually performed better than the more complex models. Furthermore, there is only a 2 percentage point difference between these more complex models and the inferential model.
+
 ![Accuracy Summaries](./Images/model_accuracies.png)
