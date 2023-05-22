@@ -1,0 +1,227 @@
+---
+title: "NBA_Predict_Other_Models"
+author: "Tim Tantivilaisin"
+date: "2023-05-21"
+output: pdf_document
+---
+
+## Loading in design matrix
+```{r}
+# load the data we got from the api in the previous code chunk
+design_matrix <- read.csv("./data/design_matrix.csv")
+```
+
+### starting with random forest
+
+```{r, message=F}
+library(dplyr)
+season <- "2022-23"
+
+# Find the first instance of the value in the '2022-2023' column
+test_start <- which(design_matrix$slugSeason == season)[1]
+
+# defining train test split
+
+train_design_matrix <- design_matrix[1:test_start-1,]
+test_design_matrix <- design_matrix[test_start:nrow(design_matrix),]
+
+x_test <- test_design_matrix %>%
+  select(-slugSeason, -dateGame, -outcomeGame)
+
+y_test <- test_design_matrix %>%
+  select(outcomeGame)
+
+# random forest model
+set.seed(254)
+library(randomForest)
+
+# Convert outcomeGame to factor or binary variable
+train_design_matrix$outcomeGame <- as.factor(train_design_matrix$outcomeGame)
+
+rf_model <- randomForest(outcomeGame ~ isB2BSecond + avg_treb + avg_stl + avg_blk + avg_tov + 
+                     avg_orate + avg_drate + avg_true_s + avg_win_perc, 
+                   data = train_design_matrix) 
+
+rf_predictions <- predict(rf_model, x_test)
+
+confusion_matrix <- table(Predicted = rf_predictions, Actual = t(y_test[,1]))
+accuracy_rf <- sum(diag(confusion_matrix)) / sum(confusion_matrix)
+cat("Random Forest Accuracy: ", accuracy_rf)
+
+```
+
+0.6910569 accuracy
+
+# let's try random forest with only the variables that LASSO chose.
+
+```{r, message=FALSE}
+# random forest model
+set.seed(254)
+library(randomForest)
+rf_model <- randomForest(outcomeGame ~ isB2BSecond + avg_win_perc, 
+                   data = train_design_matrix) 
+
+rf_predictions <- predict(rf_model, x_test)
+
+confusion_matrix <- table(Predicted = rf_predictions, Actual = t(y_test[,1]))
+accuracy_rf_lasso <- sum(diag(confusion_matrix)) / sum(confusion_matrix)
+cat("Random Forest Accuracy: ", accuracy_rf)
+```
+
+ 0.7097561 accuracy
+
+```{r, message=F}
+train_design_matrix <- design_matrix[1:test_start-1,]
+test_design_matrix <- design_matrix[test_start:nrow(design_matrix),]
+
+# XGboost model
+library(xgboost)
+
+train_data <- train_design_matrix %>%
+  select(-slugSeason, -dateGame)
+  
+
+test_data <- test_design_matrix %>%
+  select(-slugSeason, -dateGame)
+
+# Convert the data to a suitable format for xgboost
+train_matrix <- xgb.DMatrix(data = as.matrix(train_data[, -which(names(train_data) 
+                                                                 == "outcomeGame")]), 
+                            label = train_data$outcomeGame)
+test_matrix <- xgb.DMatrix(data = as.matrix(test_data[, -which(names(test_data)
+                                                               == "outcomeGame")]),
+                           label = test_data$outcomeGame)
+
+# set params for xgboost model
+params <- list(
+  objective = "binary:logistic", 
+  eval_metric = "error",
+  max_depth = 6,
+  eta = 0.3,
+  min_child_weight = 1,
+  subsample = 1,
+  colsample_bytree = 1
+)
+
+# training the model
+xgb_model <- xgb.train(
+  params = params,
+  data = train_matrix,
+  nrounds = 100, # number of boosting rounds
+  watchlist = list(train = train_matrix, test = test_matrix),
+  early_stopping_rounds = 10, # stop if no improvement in test set performance after 10 rounds
+  print_every_n = 10 # print evaluation metric every 10 rounds
+)
+
+xg_predictions <- predict(xgb_model, as.matrix(test_data[, -which(names(test_data) == "outcomeGame")]))
+
+# getting accuracy
+predicted_labels <- ifelse(xg_predictions > 0.5, 1, 0)
+accuracy_xg <- mean(predicted_labels == test_data$outcomeGame)
+print(accuracy_xg)
+
+```
+0.7081301 accuracy
+
+Naive Bayes
+
+```{r, message=FALSE}
+# Naive Bayes
+library(e1071)
+library(caret)
+library(lattice)
+set.seed(254)
+
+train_data$outcomeGame <- as.factor(train_data$outcomeGame)
+test_data$outcomeGame <- as.factor(test_data$outcomeGame)
+
+train_control <- trainControl(method="repeatedcv", number=10, repeats=3)
+
+nb_model <- train(outcomeGame~., data=train_data, trControl=train_control, 
+                  method="naive_bayes")
+
+nb_predictions <- nb_model %>% predict(test_data[,-2])
+accuracy_nb <- mean(nb_predictions == test_data$outcomeGame)
+print(accuracy_nb)
+```
+
+0.699187 accuracy
+
+SVM
+
+```{r, eval=FALSE}
+library(doParallel)
+library(foreach)
+
+cl <- makeCluster(detectCores() - 2)
+registerDoParallel(cl)
+
+# Define the parameter grid for the SVM model
+parameter_grid <- expand.grid(gamma = 10^seq(-5,5, length.out = 20), 
+                              cost = 10^seq(-5,5, length.out = 20))
+
+# run tune.svm in parallel
+svm_results_radial <- foreach(i = 1:nrow(parameter_grid), .packages = c("e1071")) %dopar% {
+  tune.svm(outcomeGame ~ ., data = train_data, kernel = "radial", gamma = parameter_grid[i,"gamma"], 
+           cost = parameter_grid[i,"cost"], metric = 'accuracy',
+           tunecontrol = tune.control(cross = 10))
+}
+
+# stop parallel processing
+stopCluster(cl)
+
+# Select the best SVM model based on accuracy
+error_radial <- sapply(svm_results_radial, function(x) min(x$performances$error))
+best_model_radial <- svm_results_radial[[which.min(error_radial)]]
+
+# Retrieve the best parameters from the best SVM model
+best_parameters_radial <- best_model_radial$best.parameters
+best_parameters_radial
+
+# gamma     cost
+# 3.359818e-05 8858.668
+
+# Train the SVM model using the best parameters
+svm_radial <- svm(outcomeGame ~ ., data = train_data, kernel = "radial", gamma =
+                     best_parameters_radial$gamma, cost = best_parameters_radial$cost)
+
+unregister_dopar <- function() {
+  env <- foreach:::.foreachGlobals
+  rm(list=ls(name=env), pos=env)
+}
+
+unregister_dopar()
+
+# do predictions
+radial_predictions <- predict(svm_radial, newdata = test_data[,-2])
+
+# Calculate the accuracy of the model
+radial_accuracy <- mean(as.numeric(radial_predictions)-1 == test_data[,2])
+print(paste("Radial Accuracy:", radial_accuracy))
+```
+
+Ran this before and it takes around 12 hours with 8 cores on an M1 MAX mac book pro.
+Radial Accuracy: 0.709756097560976"
+```{r}
+accuracy_svm_rbf <- 0.709756097560976
+```
+
+
+## Let's make a table of accuracies
+
+```{r}
+library(stargazer)
+# we do this with a data frame
+model_names <- c("Random Forest", "Random Forest Lasso Feature Selection",
+                 "XG Boost", "Naive Bayes", "SVM RBF Kernel")
+
+accuracies <- c(accuracy_rf, accuracy_rf_lasso, accuracy_xg, accuracy_nb,
+                accuracy_svm_rbf)
+
+accuracy_df <- data.frame(Model = model_names, Accuracy = accuracies)
+
+print(accuracy_df)
+
+stargazer(accuracy_df, type = "latex", title = "Model Accuracies", label = "tab:table1", summary = FALSE, digits = 5)
+```
+
