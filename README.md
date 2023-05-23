@@ -1,6 +1,6 @@
 # NBA_Predict
 
-This project was done in collaboration with Jeffrey Kuo, jrkuo2015 [at] berkeley [dot] edu
+This project was done in collaboration with Jeffrey Kuo, jrkuo2015 [at] berkeley [dot] edu, for Stat 230A under Professor Sam Pimentel.
 
 To view detailed derivation of methods, please read [Method_Details.pdf](https://github.com/Ttantivi/NBA_Predict/blob/main/Method_Details.pdf)
 
