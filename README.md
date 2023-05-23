@@ -11,8 +11,8 @@ To view detailed derivation of methods, please read [Method_Details.pdf](https:/
 This repository houses the predictive models we've created for predicting win/loss outcomes of NBA regular season games. The current focus is on the latest 2022-2023 season, where we employ historical team performance data, home field advantage and additional factors to inform our predictions.
 
 Instructions: 
-* Run NBA_Predict_Models.Rmd to create design matrix csv
-* Models are contained in NBA_Predict_Models.rmd
+* Run [NBA_data_preprocessig.Rmd](https://github.com/Ttantivi/NBA_Predict/blob/main/NBA_data_preprocessing.Rmd) to create design matrix csv
+* Models are contained in [NBA_Predict_Models.rmd](https://github.com/Ttantivi/NBA_Predict/blob/main/NBA_Predict_Models.Rmd)
 
 ## Motivation
 
