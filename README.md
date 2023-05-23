@@ -2,7 +2,7 @@
 
 This project was done in collaboration with Jeffrey Kuo, jrkuo2015 [at] berkeley [dot] edu
 
-To view detailed derivation of methods, please read Method_Details.pdf
+To view detailed derivation of methods, please read [Method_Details.pdf](https://github.com/Ttantivi/NBA_Predict/blob/main/Method_Details.pdf)
 
 ![NBA Logo](./Images/nba_logo_small.png)
 
@@ -32,7 +32,7 @@ To calculate the probability, we utilize data from the 2012 season up to the pre
 * true shooting
 * win rate. 
 
-To account for the pace of the game, all stats except true shooting and win rate are adjusted on a per 100 possessions basis.
+To account for the pace of the game, all stats except true shooting and win rate are adjusted on a per 100 possessions basis. All the data wrangling was done within [NBA_data_preprocessing.Rmd](https://github.com/Ttantivi/NBA_Predict/blob/main/NBA_data_preprocessing.Rmd).
 
 ## Modeling
 Our aim is to predict the outcome of a game using a binary function and understand the underlying factors contributing to the predicted probability.
@@ -77,7 +77,11 @@ Please note that this is a simplified overview, and further information can be f
 * Inference-focused model: A standard logistic regression model, tailored to offer valuable insights (achieved 68.94% accuracy).
 ![Summary table](./Images/Logistic_Summary.png)
 
+These results can be achieved by running the code in [NBA_Predict_Models.Rmd](https://github.com/Ttantivi/NBA_Predict/blob/main/NBA_Predict_Models.Rmd), after getting the design matrix from [NBA_data_preprocessing.Rmd](https://github.com/Ttantivi/NBA_Predict/blob/main/NBA_data_preprocessing.Rmd).
+
 ## How Do These Results Compare to More Complicated Machine Learning Methods?
 The results below tell us that the Logistic Regression model with the LASSO penalty actually performed better than the more complex models. Furthermore, there is only a 2 percentage point difference between these more complex models and the inferential model.
 
 ![Accuracy Summaries](./Images/model_accuracies.png)
+
+Run [NBA_Predict_Other_Models.Rmd](https://github.com/Ttantivi/NBA_Predict/blob/main/NBA_Predict_Other_Models.Rmd) to get these results.
