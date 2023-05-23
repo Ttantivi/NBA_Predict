@@ -12,7 +12,7 @@ This repository houses the predictive models we've created for predicting win/lo
 
 Instructions: 
 * Run [NBA_data_preprocessig.Rmd](https://github.com/Ttantivi/NBA_Predict/blob/main/NBA_data_preprocessing.Rmd) to create design matrix csv
-* Models are contained in [NBA_Predict_Models.rmd](https://github.com/Ttantivi/NBA_Predict/blob/main/NBA_Predict_Models.Rmd)
+* Models are contained in [NBA_Predict_Models.Rmd](https://github.com/Ttantivi/NBA_Predict/blob/main/NBA_Predict_Models.Rmd)
 
 ## Motivation
 
