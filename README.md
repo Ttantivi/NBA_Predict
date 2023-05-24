@@ -14,6 +14,9 @@ Instructions:
 * Run [NBA_data_preprocessig.Rmd](https://github.com/Ttantivi/NBA_Predict/blob/main/NBA_data_preprocessing.Rmd) to create design matrix csv
 * Models are contained in [NBA_Predict_Models.Rmd](https://github.com/Ttantivi/NBA_Predict/blob/main/NBA_Predict_Models.Rmd)
 
+### End Result Preview
+We achieved a near state-of-the-art 71.22% prediction accuracy on the 2022-2023 NBA season.
+
 ## Motivation
 
 With an emphasis on interpretability over complexity, we chose to utilize linear models as our primary tool for this task, starting with data from the 2012 season onward. The implications of such analysis are far reaching for NBA teams. The insights can affect decisions related to player acquisition and coaching strategies, potentially altering a team's revenues by hundreds of millions of dollars each year.
